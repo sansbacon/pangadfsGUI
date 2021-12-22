@@ -19,7 +19,8 @@ def run():
           author_email="eric@erictruett.com",
           license="MIT",
           packages=find_packages('src'),
-          package_data={'': ['*.csv']},
+          package_dir={'': 'src'},
+          include_package_data=True,          
           zip_safe=False
         )
 
