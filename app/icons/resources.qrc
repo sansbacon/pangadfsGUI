@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="icons">
+        <file alias="shuffle.png">arrow-switch.png</file>
+        <file alias="openproj.png">folder-open-table.png</file>
+    </qresource>
+</RCC>

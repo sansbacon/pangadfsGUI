@@ -4,9 +4,11 @@ import sys
 import pandas as pd
 
 from PySide6.QtWidgets import (QTableView, QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QHeaderView, QSizePolicy,
-                               QTableView, QToolButton, QTreeWidget, QWidget, QFileDialog, QTabWidget)
+                               QTableView, QToolButton, QTreeWidget, QWidget, QFileDialog, QTabWidget, QStyle)
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 from PySide6.QtGui import QAction, QKeySequence, QIcon
+
+from .resources import *
 
 
 class HorizontalHeader(QHeaderView):
@@ -183,9 +185,19 @@ class MainWindow(QMainWindow):
 
         # tool buttons
         butt1 = QToolButton()
+        butt1.setToolTip('Open Projections File')
         butt2 = QToolButton()
-        butt1.setArrowType(Qt.DownArrow)
-        butt2.setArrowType(Qt.UpArrow)
+        butt2.setToolTip('Close Projections File')
+
+        #QIcon(QPixmap(":/icons/openproj.png"))
+        #QIcon(QPixmap(":/icons/shuffle.png"))
+        b1_pixmapi = getattr(QStyle.StandardPixmap, 'SP_FileDialogStart')
+        b1_icon = self.style().standardIcon(b1_pixmapi)
+        butt1.setIcon(b1_icon)
+        b2_pixmapi = getattr(QStyle.StandardPixmap, 'SP_ComputerIcon')
+        b2_icon = self.style().standardIcon(b2_pixmapi)
+        butt2.setIcon(b2_icon)
+
         t1_1_layout.addWidget(butt1)
         t1_1_layout.addWidget(butt2)
         t1_1_widget = QWidget()
