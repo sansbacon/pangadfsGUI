@@ -1,163 +1,117 @@
-# pangadfsgui/src/pangadfs_gui/view.py
+# pangadfsgui/src/pangadfs_gui/widget.py
 # -*- coding: utf-8 -*-
 # Copyright (C) 2021 Eric Truett
 # Licensed under the MIT License
 
 from pathlib import Path
+from typing import Any, List
 
 import numpy as np
 import polars as pl
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon, QPixmap
-from PySide6.QtWidgets import (QComboBox, QTableView, QHBoxLayout, QHeaderView, QSizePolicy, QWidget, 
-                               QVBoxLayout, QToolButton, QWidget, QStyle, QFileDialog, QComboBox)
+from PySide6.QtGui import QIcon, QPixmap, QFont
+from PySide6.QtWidgets import (QFormLayout, QLabel, QTableView, QHBoxLayout, QHeaderView, QSizePolicy, QWidget, 
+                               QVBoxLayout, QToolButton, QWidget, QStyle, QFileDialog, QLineEdit)
 
-from pangadfs_gui.model import PolarsModel
-
-
-class HorizontalHeader(QHeaderView):
-    
-    # https://stackoverflow.com/questions/69171881/qtableview-sortingenabled-and-column-selection
-    def mousePressEvent(self, event):
-        self.new_order = self.sortIndicatorOrder()
-        super().mousePressEvent(event)
-        height = self.height()
-        x = event.position().x()
-        logical_index = self.logicalIndexAt(x)
-        x_left = self.sectionPosition(logical_index)
-        x_right = x_left + self.sectionSize(logical_index)
-        if (x_right - height) <= x <= x_right:
-            self.new_order = (
-                Qt.DescendingOrder
-                if self.new_order == Qt.AscendingOrder
-                else Qt.AscendingOrder
-            )
-
-    def mouseReleaseEvent(self, event):
-        super().mouseReleaseEvent(event)
-        x = event.position().x()
-        logical_index = self.logicalIndexAt(x)
-        self.setSortIndicator(logical_index, self.new_order)
+from pyqtconfig import ConfigManager
+from pangadfs_gui.model import DataframeModel
+from pangadfs_gui.view import DataframeView
 
 
-class PandasWidget(QWidget):
-    def __init__(self, df: pd.DataFrame = None):
-        QWidget.__init__(self)
+class DataframeWidget(QWidget):
+    def __init__(self, model: DataframeModel, fn: str = None):
+        """Creates widget
+        
+        Args:
+            model (DataframeModel): the model for the widget
+            fn (str): optional, will load dataframe if passed
+
+        Returns:
+            DataframeWidget
+
+        """
+        super().__init__()
 
         # Getting the Model
-        self.model = PolarsModel(df if df is not None else pl.DataFrame())
+        self.model = model
+        if fn:
+            self.model.loadCsv(fn)
 
         # Creating a QTableView
-        self.table_view = QTableView()
-        self.table_view.setModel(self.model)
-        self.table_view.setAlternatingRowColors(True)
-        self.table_view.setSortingEnabled(True)
+        self.table_view = DataframeView(self.model)
 
-        # QTableView Headers
-        # https://stackoverflow.com/questions/69171881/qtableview-sortingenabled-and-column-selection
-        horizontal_header = HorizontalHeader(Qt.Horizontal)
-        self.table_view.setHorizontalHeader(horizontal_header)
-        horizontal_header.setSortIndicatorShown(True)
-        horizontal_header.setSectionsClickable(True)
-        self.table_view.setModel(self.model)
-        horizontal_header.sortIndicatorChanged.connect(self.model.sort)
-        horizontal_header.setSortIndicator(0, Qt.AscendingOrder)
-        
-        self.vertical_header = self.table_view.verticalHeader()
-        self.vertical_header.setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.vertical_header.setVisible(False)
-
-        # QWidget Layout
+        # DataframeWidget Layout
         self.main_layout = QHBoxLayout()
         size = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-
-        ## Left layout
         size.setHorizontalStretch(0)
         self.table_view.setSizePolicy(size)
         self.main_layout.addWidget(self.table_view)
-
-        # Set the layout to the QWidget
         self.setLayout(self.main_layout)
 
 
-class ProjectionsWidget(QWidget):
-    """The projections widget"""
-    def __init__(self):
-        QWidget.__init__(self)
-        self.current_df = None
-        self.prev_df = None
+class ButtonStripWidget(QWidget):
+    """Base button strip widget"""
+    def __init__(self, buttons: List[dict] = None, margins: tuple = None, alignment: Qt.Alignment = None):
+        super().__init__()
+        self.main_layout = QHBoxLayout()
+        if buttons:
+            for button in buttons:
+                self.main_layout.add(self._make_button(button))
+        if margins:
+            self.main_layout.setContentsMargins(margins)
+        if alignment:
+            self.main_layout.setAlignment(alignment)
 
-        # tab 1: Projections
+    def _make_button(self, data):
+        """Makes button given values in data"""
+        b = QToolButton()
+        if 'tooltip' in data:
+            b.setToolTip(data.get('tooltip'))
+        if 'connect' in data:
+            b.clicked.connect(data.get('connect'))
+        if 'icon' in data:
+            if data['icon'][0] == ':':
+                b.setIcon(QIcon(QPixmap(data['icon'])))
+            else:
+                b.setIcon(self.style().standardIcon(getattr(QStyle.StandardPixmap, data['icon'])))
+
+
+class TabWidget(QWidget):
+    """Base 2-column widget for tabs"""
+    def __init__(self, config: ConfigManager):
+        super().__init__()
+        self.main_layout = QVBoxLayout()
+        self.button_strip = ButtonStripWidget()
+        self.dataframe_widget = DataframeWidget(model=DataframeModel(df=None))
+        self.main_layout.addWidget(self.button_strip)
+        self.main_layout.addWidget(self.dataframe_widget)
+        self.setLayout(self.main_layout)
+
+
+class SidebarConfigWidget(QWidget):
+    def __init__(self, config: ConfigManager, label: str = 'Settings', margins: tuple = (0, 12, 0, 5), alignment: Qt.Alignment = Qt.AlignTop):
+        super().__init__()
+        self.config = config
         self.main_layout = QVBoxLayout()
         
-        # toolbars
+        # label widget
         self.sub_layout = QHBoxLayout()
-        self.sub_layout.setContentsMargins(0, 0, 0, 0)
-        self.sub_layout.setAlignment(Qt.AlignLeft)
+        label = QLabel()
+        label.setText(label)
+        lFont = QFont()
+        lFont.setBold(True)
+        label.setFont(lFont)
+        label.setLayout(self.sub_layout)
 
-        # tool buttons
-        ## Open Projections File
-        self.butt_op = QToolButton()
-        self.butt_op.setToolTip('Open Projections File')
-        self.butt_op.clicked.connect(self.open_projections) 
-        self.butt_op.setIcon(QIcon(QPixmap(":/icons/openproj.png")))
-        self.sub_layout.addWidget(self.butt_op)
+        # form layout is for config editing
+        self.form_layout = QFormLayout()
+        cols = self.config.as_dict().keys()
+        self.mapping = {col: QLineEdit() for col in cols}
+        for label, widget in self.mapping.items():
+            self.form_layout.addRow(label, widget)
 
-        ## Randomize Projections       
-        self.butt_rp = QToolButton()
-        self.butt_rp.setToolTip('Randomize Projections')
-        self.butt_rp.clicked.connect(self.randomize_projections)                
-        self.butt_rp.setIcon(QIcon(QPixmap(":/icons/shuffle.png")))
-        self.sub_layout.addWidget(self.butt_rp)
-        
-        ## Projections List
-        #self.cb_rp = QComboBox()
-        #self.cb_rp.addItems(["Original Projections"])
-        #self.cb_rp.currentIndexChanged.connect(self.cbrp_index_changed)
-        # NEED TO IMPLEMENT THIS self.cb_rp.currentIndexChanged.connect(self.index_changed)
-
-        #self.butt_resetp = QToolButton()
-        #self.butt_resetp.setToolTip('Reset Projections')
-        #self.butt_resetp.setIcon(self.style().standardIcon(getattr(QStyle.StandardPixmap, 'SP_BrowserReload')))
-        #self.sub_layout.addWidget(self.resetp)
-        
- 
-        #self.sub_layout.addWidget(self.butt4)
-        self.icons_widget = QWidget()
-        self.icons_widget.setLayout(self.sub_layout)
-        self.main_layout.addWidget(self.icons_widget, 1)
-
-        # pandas widget
-        self.pandas_widget = PandasWidget()
-        self.main_layout.addWidget(self.pandas_widget, 99)
-
-        # add layout to widget
+        # add to main layout
+        self.main_layout.addLayout(self.sub_layout, 1)
+        self.main_layout.addLayout(self.form_layout, 99)
         self.setLayout(self.main_layout)
-
-    def open_projections(self):
-        """Opens projections file"""
-        file_name, _ = QFileDialog.getOpenFileName(self, self.tr('Open File'), self.tr(str(Path.home())), '*')
-        fpth = Path(file_name)
-        if fpth.suffix == '.csv':
-            if self.current_df is not None:
-                self.prev_df = self.current_df.copy()
-            self.current_df = pd.read_csv(fpth)
-        elif fpth.suffix == '.excel':
-            if self.current_df is not None:
-                self.prev_df = self.current_df.copy()
-            self.current_df = pd.read_excel(fpth)
-        else:
-            raise ValueError(f'Unsupported file format (csv and excel only): {fpth.suffix}')
-        self.pandas_widget.table_view.setModel(PandasModel(self.current_df))
-        self.update()
-
-    def randomize_projections(self, projection_column=None):
-        """randomizes projections"""
-        self.prev_df = self.current_df.copy()
-        if not projection_column:
-            projection_column = self.current_df.columns[-1]
-        random_weights = np.random.randint(low=-15, high=15, size=len(self.current_df)) / 100
-        self.current_df[projection_column] = self.current_df[projection_column] + (self.current_df[projection_column] * random_weights).round(1)
-        self.pandas_widget.table_view.setModel(PandasModel(self.current_df))
-        self.update()
