@@ -6,14 +6,14 @@
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon, QPixmap
-from PySide6.QtWidgets import (QTableView, QHBoxLayout, QHeaderView, QSizePolicy, QWidget, 
-                               QVBoxLayout, QToolButton, QWidget, QStyle, QFileDialog)
+from PySide6.QtWidgets import (QComboBox, QTableView, QHBoxLayout, QHeaderView, QSizePolicy, QWidget, 
+                               QVBoxLayout, QToolButton, QWidget, QStyle, QFileDialog, QComboBox)
 
-from .model import PandasModel
+from pangadfs_gui.model import PolarsModel
 
 
 class HorizontalHeader(QHeaderView):
@@ -46,7 +46,7 @@ class PandasWidget(QWidget):
         QWidget.__init__(self)
 
         # Getting the Model
-        self.model = PandasModel(df if df is not None else pd.DataFrame())
+        self.model = PolarsModel(df if df is not None else pl.DataFrame())
 
         # Creating a QTableView
         self.table_view = QTableView()
@@ -63,8 +63,10 @@ class PandasWidget(QWidget):
         self.table_view.setModel(self.model)
         horizontal_header.sortIndicatorChanged.connect(self.model.sort)
         horizontal_header.setSortIndicator(0, Qt.AscendingOrder)
+        
         self.vertical_header = self.table_view.verticalHeader()
         self.vertical_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.vertical_header.setVisible(False)
 
         # QWidget Layout
         self.main_layout = QHBoxLayout()
@@ -95,25 +97,33 @@ class ProjectionsWidget(QWidget):
         self.sub_layout.setAlignment(Qt.AlignLeft)
 
         # tool buttons
-        self.butt1 = QToolButton()
-        self.butt1.setToolTip('Open Projections File')
-        self.butt1.clicked.connect(self.open_projections) 
-        self.butt2 = QToolButton()
-        self.butt2.setToolTip('Randomize Projections')
-        self.butt2.clicked.connect(self.randomize_projections)                
-        self.butt3 = QToolButton()
-        self.butt3.setToolTip('Reset Projections')
-        self.butt4 = QToolButton()
-        self.butt4.setToolTip('Close Projections File')
-        self.butt1.setIcon(QIcon(QPixmap(":/icons/openproj.png")))
-        self.butt2.setIcon(QIcon(QPixmap(":/icons/shuffle.png")))
-        self.butt3.setIcon(self.style().standardIcon(getattr(QStyle.StandardPixmap, 'SP_BrowserReload')))
-        self.butt4.setIcon(self.style().standardIcon(getattr(QStyle.StandardPixmap, 'SP_FileDialogEnd')))
+        ## Open Projections File
+        self.butt_op = QToolButton()
+        self.butt_op.setToolTip('Open Projections File')
+        self.butt_op.clicked.connect(self.open_projections) 
+        self.butt_op.setIcon(QIcon(QPixmap(":/icons/openproj.png")))
+        self.sub_layout.addWidget(self.butt_op)
+
+        ## Randomize Projections       
+        self.butt_rp = QToolButton()
+        self.butt_rp.setToolTip('Randomize Projections')
+        self.butt_rp.clicked.connect(self.randomize_projections)                
+        self.butt_rp.setIcon(QIcon(QPixmap(":/icons/shuffle.png")))
+        self.sub_layout.addWidget(self.butt_rp)
+        
+        ## Projections List
+        #self.cb_rp = QComboBox()
+        #self.cb_rp.addItems(["Original Projections"])
+        #self.cb_rp.currentIndexChanged.connect(self.cbrp_index_changed)
+        # NEED TO IMPLEMENT THIS self.cb_rp.currentIndexChanged.connect(self.index_changed)
+
+        #self.butt_resetp = QToolButton()
+        #self.butt_resetp.setToolTip('Reset Projections')
+        #self.butt_resetp.setIcon(self.style().standardIcon(getattr(QStyle.StandardPixmap, 'SP_BrowserReload')))
+        #self.sub_layout.addWidget(self.resetp)
+        
  
-        self.sub_layout.addWidget(self.butt1)
-        self.sub_layout.addWidget(self.butt2)
-        self.sub_layout.addWidget(self.butt3)
-        self.sub_layout.addWidget(self.butt4)
+        #self.sub_layout.addWidget(self.butt4)
         self.icons_widget = QWidget()
         self.icons_widget.setLayout(self.sub_layout)
         self.main_layout.addWidget(self.icons_widget, 1)
